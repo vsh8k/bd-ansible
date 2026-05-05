@@ -3,6 +3,10 @@
   gather_facts: false
 
   tasks:
+    - name: Įrengnio pavadinimo priskyrimas
+      community.routeros.command:
+        commands:
+          - /system identity set name="{{ routeros_hostname | default(inventory_hostname) }}"
     - name: LAN tilto sukūrimas
       community.routeros.command:
         commands:

@@ -1,6 +1,8 @@
 ansible_host: 172.16.99.21
 device_role: router
 
+routeros_hostname: PASTO-R1
+
 wan_interface: ether1
 
 trunk_interfaces:

@@ -1,6 +1,8 @@
 ansible_host: 172.16.99.12
 device_role: switch
 
+routeros_hostname: KOVO-SW1
+
 trunk_interfaces:
   - ether1
 

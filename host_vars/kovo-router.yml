@@ -1,6 +1,8 @@
 ansible_host: 172.16.99.11
 device_role: router
 
+routeros_hostname: KOVO-R1
+
 wan_interface: ether1
 
 trunk_interfaces:
