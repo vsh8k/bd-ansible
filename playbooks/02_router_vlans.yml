@@ -1,0 +1,33 @@
+- name: Configure router VLAN interfaces and gateways
+  hosts: routers
+  gather_facts: false
+
+  tasks:
+    - name: VLAN sąsajų sukūrimas maršrutizatoriaus tilte
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/interface vlan find name="vlan{{ item.id }}-{{ item.name }}"]] = 0)
+            do={/interface vlan add name=vlan{{ item.id }}-{{ item.name }} vlan-id={{ item.id }} interface={{ lan_bridge }}}
+      loop: "{{ vlans }}"
+
+    - name: Tinklų vartų IP adresų priskyrimas
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/ip address find address="{{ item.gateway }}/24"]] = 0)
+            do={/ip address add address={{ item.gateway }}/24 interface=vlan{{ item.id }}-{{ item.name }} comment="{{ site_name }} VLAN {{ item.id }} gateway"}
+      loop: "{{ vlans }}"
+
+    - name: VLAN pridėjimas į maršrutizatoriaus tilto VLAN lentelę
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/interface bridge vlan find bridge="{{ lan_bridge }}" vlan-ids="{{ item.id }}"]] = 0)
+            do={/interface bridge vlan add bridge={{ lan_bridge }} vlan-ids={{ item.id }} tagged={{ lan_bridge }}{% for p in trunk_interfaces %},{{ p }}{% endfor %}}
+      loop: "{{ vlans }}"
+
+    - name: VLAN filtravimo įjungimas maršrutizatoriaus tilte
+      community.routeros.command:
+        commands:
+          - /interface bridge set {{ lan_bridge }} vlan-filtering=yes

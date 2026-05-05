@@ -1,0 +1,46 @@
+- name: Base MikroTik setup
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: LAN tilto sukūrimas
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/interface bridge find name="{{ lan_bridge }}"]] = 0)
+            do={/interface bridge add name={{ lan_bridge }} vlan-filtering=no}
+
+    - name: Magistralinių sąsajų pridėjimas į tiltą
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/interface bridge port find interface="{{ item }}"]] = 0)
+            do={/interface bridge port add bridge={{ lan_bridge }} interface={{ item }} frame-types=admit-only-vlan-tagged ingress-filtering=yes}
+      loop: "{{ trunk_interfaces }}"
+
+    - name: WAN DHCP kliento sukonfigūravimas maršrutizatoriuose
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/ip dhcp-client find interface="{{ wan_interface }}"]] = 0)
+            do={/ip dhcp-client add interface={{ wan_interface }} disabled=no}
+      when: device_role == "router"
+
+    - name: DNS sukonfigūravimas maršrutizatoriuose
+      community.routeros.command:
+        commands:
+          - /ip dns set servers=1.1.1.1,8.8.8.8 allow-remote-requests=yes
+      when: device_role == "router"
+
+    - name: NAT sukonfigūravimas maršrutizatoriuose
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/ip firewall nat find comment="NAT to ISP"]] = 0)
+            do={/ip firewall nat add chain=srcnat out-interface={{ wan_interface }} action=masquerade comment="NAT to ISP"}
+      when: device_role == "router"
+
+    - name: Laiko juostos nustatymas
+      community.routeros.command:
+        commands:
+          - /system clock set time-zone-name=Europe/Vilnius

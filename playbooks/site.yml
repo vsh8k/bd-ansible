@@ -1,0 +1,5 @@
+- import_playbook: 01_base.yml
+- import_playbook: 02_router_vlans.yml
+- import_playbook: 03_router_dhcp.yml
+- import_playbook: 04_switch_vlans.yml
+- import_playbook: 05_router_firewall.yml

@@ -1,0 +1,23 @@
+all:
+  children:
+    routers:
+      hosts:
+        kovo-router:
+        pasto-router:
+
+    switches:
+      hosts:
+        kovo-sw1:
+        kovo-sw2:
+        pasto-sw1:
+
+    kovo11:
+      hosts:
+        kovo-router:
+        kovo-sw1:
+        kovo-sw2:
+
+    pasto:
+      hosts:
+        pasto-router:
+        pasto-sw1:

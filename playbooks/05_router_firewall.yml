@@ -1,0 +1,127 @@
+- name: Configure router firewall and inter-VLAN ACL
+  hosts: routers
+  gather_facts: false
+
+  tasks:
+    - name: Anksčiau sugeneruotų ugniasienės filtrų taisyklių pašalinimas
+      community.routeros.command:
+        commands:
+          - /ip firewall filter remove [find where comment~"^FW-"]
+
+    - name: Anksčiau sugeneruotų adresų sąrašų pašalinimas
+      community.routeros.command:
+        commands:
+          - /ip firewall address-list remove [find where list~"^FW-"]
+
+    - name: Anksčiau sugeneruotų NAT taisyklių ir bendros bazinės NAT taisyklės pašalinimas
+      community.routeros.command:
+        commands:
+          - /ip firewall nat remove [find where comment~"^FW-NAT"]
+          - /ip firewall nat remove [find where comment="NAT to ISP"]
+
+    - name: Ugniasienės adresų sąrašų VLAN potinkliams sukūrimas
+      community.routeros.command:
+        commands:
+          - /ip firewall address-list add list=FW-ADMIN address={{ admin_subnet }} comment="FW-LIST admin subnet"
+          - /ip firewall address-list add list=FW-STAFF address={{ staff_subnet }} comment="FW-LIST staff subnet"
+          - /ip firewall address-list add list=FW-GUESTS address={{ guest_subnet }} comment="FW-LIST guest subnet"
+          - /ip firewall address-list add list=FW-SERVICES address={{ services_subnet }} comment="FW-LIST services subnet"
+          - /ip firewall address-list add list=FW-MGMT address={{ management_subnet }} comment="FW-LIST management subnet"
+          - /ip firewall address-list add list=FW-INTERNAL address={{ admin_subnet }} comment="FW-LIST internal admin"
+          - /ip firewall address-list add list=FW-INTERNAL address={{ staff_subnet }} comment="FW-LIST internal staff"
+          - /ip firewall address-list add list=FW-INTERNAL address={{ guest_subnet }} comment="FW-LIST internal guests"
+          - /ip firewall address-list add list=FW-INTERNAL address={{ services_subnet }} comment="FW-LIST internal services"
+          - /ip firewall address-list add list=FW-INTERNAL address={{ management_subnet }} comment="FW-LIST internal management"
+
+    - name: Studentų adresų sąrašo sukūrimas tik vietoms, kuriose yra VLAN 30
+      community.routeros.command:
+        commands:
+          - /ip firewall address-list add list=FW-STUDENTS address={{ student_subnet }} comment="FW-LIST students subnet"
+          - /ip firewall address-list add list=FW-INTERNAL address={{ student_subnet }} comment="FW-LIST internal students"
+      when: student_subnet is defined and student_subnet | length > 0
+
+    - name: Maršrutizatoriaus įvesties grandinės apsaugos sukonfigūravimas
+      community.routeros.command:
+        commands:
+          - /ip firewall filter add chain=input action=accept connection-state=established,related,untracked comment="FW-INPUT accept established related untracked"
+          - /ip firewall filter add chain=input action=drop connection-state=invalid comment="FW-INPUT drop invalid"
+          - /ip firewall filter add chain=input action=accept protocol=icmp src-address-list=FW-MGMT comment="FW-INPUT allow ICMP from management"
+          - /ip firewall filter add chain=input action=accept protocol=tcp src-address-list=FW-MGMT dst-port=22,8291 comment="FW-INPUT allow SSH and Winbox from management"
+          - /ip firewall filter add chain=input action=accept protocol=udp in-interface-list=all dst-port=67 comment="FW-INPUT allow DHCP requests to router"
+          - /ip firewall filter add chain=input action=accept protocol=udp src-address-list=FW-INTERNAL dst-port=53 comment="FW-INPUT allow DNS UDP from internal VLANs"
+          - /ip firewall filter add chain=input action=accept protocol=tcp src-address-list=FW-INTERNAL dst-port=53 comment="FW-INPUT allow DNS TCP from internal VLANs"
+          - /ip firewall filter add chain=input action=drop in-interface={{ wan_interface }} comment="FW-INPUT drop WAN access to router"
+          - /ip firewall filter add chain=input action=drop comment="FW-INPUT drop everything else"
+
+    - name: Peradresavimo grandinės bazinių taisyklių sukonfigūravimas
+      community.routeros.command:
+        commands:
+          - /ip firewall filter add chain=forward action=accept connection-state=established,related,untracked comment="FW-FWD accept established related untracked"
+          - /ip firewall filter add chain=forward action=drop connection-state=invalid comment="FW-FWD drop invalid"
+
+    - name: Peradresavimo grandinės ACL administravimo VLAN sukonfigūravimas
+      community.routeros.command:
+        commands:
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-ADMIN out-interface={{ wan_interface }} comment="FW-FWD admin to internet"
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-ADMIN dst-address-list=FW-ADMIN comment="FW-FWD admin to admin"
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-ADMIN dst-address-list=FW-STAFF comment="FW-FWD admin to staff"
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-ADMIN dst-address-list=FW-SERVICES comment="FW-FWD admin to services"
+
+    - name: Kovo administravimo prieigos prie studentų VLAN sukonfigūravimas
+      community.routeros.command:
+        commands:
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-ADMIN dst-address-list=FW-STUDENTS comment="FW-FWD admin to students Kovo only"
+      when: student_subnet is defined and student_subnet | length > 0
+
+    - name: Peradresavimo grandinės ACL personalo VLAN sukonfigūravimas
+      community.routeros.command:
+        commands:
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-STAFF out-interface={{ wan_interface }} comment="FW-FWD staff to internet"
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-STAFF dst-address-list=FW-STAFF comment="FW-FWD staff to staff"
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-STAFF dst-address-list=FW-SERVICES comment="FW-FWD staff to services"
+
+    - name: Kovo personalo prieigos prie studentų VLAN sukonfigūravimas
+      community.routeros.command:
+        commands:
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-STAFF dst-address-list=FW-STUDENTS comment="FW-FWD staff to students Kovo only"
+      when: student_subnet is defined and student_subnet | length > 0
+
+    - name: Kovo peradresavimo grandinės ACL studentų VLAN sukonfigūravimas
+      community.routeros.command:
+        commands:
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-STUDENTS out-interface={{ wan_interface }} comment="FW-FWD students to internet"
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-STUDENTS dst-address-list=FW-STUDENTS comment="FW-FWD students to students"
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-STUDENTS dst-address-list=FW-SERVICES comment="FW-FWD students to services"
+      when: student_subnet is defined and student_subnet | length > 0
+
+    - name: Peradresavimo grandinės ACL svečių VLAN sukonfigūravimas
+      community.routeros.command:
+        commands:
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-GUESTS out-interface={{ wan_interface }} comment="FW-FWD guests to internet only"
+
+    - name: Peradresavimo grandinės ACL paslaugų ir valdymo VLAN sukonfigūravimas
+      community.routeros.command:
+        commands:
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-SERVICES dst-address-list=FW-SERVICES comment="FW-FWD services to services"
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-MGMT dst-address-list=FW-MGMT comment="FW-FWD management to management"
+          - /ip firewall filter add chain=forward action=accept src-address-list=FW-MGMT dst-address-list=FW-INTERNAL comment="FW-FWD management to internal devices"
+
+    - name: Galutinių peradresavimo grandinės atmetimo taisyklių sukonfigūravimas
+      community.routeros.command:
+        commands:
+          - /ip firewall filter add chain=forward action=drop src-address-list=FW-INTERNAL dst-address-list=FW-INTERNAL comment="FW-FWD drop all other inter-VLAN traffic"
+          - /ip firewall filter add chain=forward action=drop in-interface={{ wan_interface }} connection-nat-state=!dstnat connection-state=new comment="FW-FWD drop new WAN traffic not dstnat"
+          - /ip firewall filter add chain=forward action=drop comment="FW-FWD drop everything else"
+
+    - name: NAT sukonfigūravimas tik VLAN, kurioms leidžiama pasiekti internetą
+      community.routeros.command:
+        commands:
+          - /ip firewall nat add chain=srcnat action=masquerade out-interface={{ wan_interface }} src-address-list=FW-ADMIN comment="FW-NAT admin to internet"
+          - /ip firewall nat add chain=srcnat action=masquerade out-interface={{ wan_interface }} src-address-list=FW-STAFF comment="FW-NAT staff to internet"
+          - /ip firewall nat add chain=srcnat action=masquerade out-interface={{ wan_interface }} src-address-list=FW-GUESTS comment="FW-NAT guests to internet"
+
+    - name: Kovo NAT studentų VLAN sukonfigūravimas
+      community.routeros.command:
+        commands:
+          - /ip firewall nat add chain=srcnat action=masquerade out-interface={{ wan_interface }} src-address-list=FW-STUDENTS comment="FW-NAT students to internet Kovo only"
+      when: student_subnet is defined and student_subnet | length > 0

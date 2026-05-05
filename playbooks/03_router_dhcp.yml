@@ -1,0 +1,31 @@
+- name: Configure DHCP on routers
+  hosts: routers
+  gather_facts: false
+
+  tasks:
+    - name: DHCP telkinių sukūrimas
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/ip pool find name="pool_vlan{{ item.id }}"]] = 0)
+            do={/ip pool add name=pool_vlan{{ item.id }} ranges={{ item.dhcp_start }}-{{ item.dhcp_end }}}
+      loop: "{{ vlans }}"
+      when: item.dhcp | bool
+
+    - name: DHCP serverių sukūrimas
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/ip dhcp-server find name="dhcp_vlan{{ item.id }}"]] = 0)
+            do={/ip dhcp-server add name=dhcp_vlan{{ item.id }} interface=vlan{{ item.id }}-{{ item.name }} address-pool=pool_vlan{{ item.id }} disabled=no}
+      loop: "{{ vlans }}"
+      when: item.dhcp | bool
+
+    - name: DHCP tinklo įrašų sukūrimas
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/ip dhcp-server network find address="{{ item.subnet }}"]] = 0)
+            do={/ip dhcp-server network add address={{ item.subnet }} gateway={{ item.gateway }} dns-server={{ item.gateway }}}
+      loop: "{{ vlans }}"
+      when: item.dhcp | bool

@@ -1,0 +1,36 @@
+ansible_host: 172.16.99.12
+device_role: switch
+
+trunk_interfaces:
+  - ether1
+
+allowed_vlans:
+  - 10
+  - 20
+  - 30
+  - 40
+  - 50
+  - 99
+
+switch_management_ip: 192.168.99.12/24
+
+access_ports:
+  - interface: ether2
+    vlan: 10
+    comment: administracija
+
+  - interface: ether3
+    vlan: 20
+    comment: darbuotojai
+
+  - interface: ether4
+    vlan: 40
+    comment: sveciai
+
+  - interface: ether6
+    vlan: 50
+    comment: paslaugos
+
+  - interface: ether7
+    vlan: 99
+    comment: valdymas

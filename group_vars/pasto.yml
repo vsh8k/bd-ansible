@@ -1,0 +1,45 @@
+site_name: pasto
+
+vlans:
+  - id: 10
+    name: administracija
+    subnet: 192.168.110.0/24
+    gateway: 192.168.110.1
+    dhcp_start: 192.168.110.50
+    dhcp_end: 192.168.110.200
+    dhcp: true
+
+  - id: 20
+    name: darbuotojai
+    subnet: 192.168.120.0/24
+    gateway: 192.168.120.1
+    dhcp_start: 192.168.120.50
+    dhcp_end: 192.168.120.200
+    dhcp: true
+
+  - id: 40
+    name: sveciai
+    subnet: 192.168.140.0/24
+    gateway: 192.168.140.1
+    dhcp_start: 192.168.140.50
+    dhcp_end: 192.168.140.200
+    dhcp: true
+
+  - id: 50
+    name: paslaugos
+    subnet: 192.168.150.0/24
+    gateway: 192.168.150.1
+    dhcp: false
+
+  - id: 99
+    name: valdymas
+    subnet: 192.168.199.0/24
+    gateway: 192.168.199.1
+    dhcp: false
+
+admin_subnet: 192.168.110.0/24
+staff_subnet: 192.168.120.0/24
+student_subnet: ""
+guest_subnet: 192.168.140.0/24
+services_subnet: 192.168.150.0/24
+management_subnet: 192.168.199.0/24

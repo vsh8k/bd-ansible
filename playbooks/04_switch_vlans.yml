@@ -1,0 +1,53 @@
+- name: Configure switch VLANs and access ports
+  hosts: switches
+  gather_facts: false
+
+  tasks:
+    - name: Prieigos prievadų pridėjimas į tiltą
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/interface bridge port find interface="{{ item.interface }}"]] = 0)
+            do={/interface bridge port add bridge={{ lan_bridge }} interface={{ item.interface }} pvid={{ item.vlan }} frame-types=admit-only-untagged-and-priority-tagged ingress-filtering=yes comment="{{ item.comment }}"}
+      loop: "{{ access_ports }}"
+
+    - name: VLAN lentelės įrašų su neženklintais prieigos prievadais pridėjimas
+      vars:
+        untagged_ports: "{{ access_ports | selectattr('vlan', 'equalto', item) | map(attribute='interface') | join(',') }}"
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/interface bridge vlan find bridge="{{ lan_bridge }}" vlan-ids="{{ item }}"]] = 0)
+            do={/interface bridge vlan add bridge={{ lan_bridge }} vlan-ids={{ item }} tagged={{ lan_bridge }}{% for p in trunk_interfaces %},{{ p }}{% endfor %} untagged={{ untagged_ports }}}
+      loop: "{{ allowed_vlans }}"
+      when: untagged_ports | length > 0
+
+    - name: VLAN lentelės įrašų be vietinių prieigos prievadų pridėjimas
+      vars:
+        untagged_ports: "{{ access_ports | selectattr('vlan', 'equalto', item) | map(attribute='interface') | join(',') }}"
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/interface bridge vlan find bridge="{{ lan_bridge }}" vlan-ids="{{ item }}"]] = 0)
+            do={/interface bridge vlan add bridge={{ lan_bridge }} vlan-ids={{ item }} tagged={{ lan_bridge }}{% for p in trunk_interfaces %},{{ p }}{% endfor %}}
+      loop: "{{ allowed_vlans }}"
+      when: untagged_ports | length == 0
+
+    - name: VLAN 99 valdymo sąsajos sukūrimas komutatoriuje
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/interface vlan find name="vlan99-management"]] = 0)
+            do={/interface vlan add name=vlan99-management vlan-id=99 interface={{ lan_bridge }}}
+
+    - name: Komutatoriaus valdymo IP priskyrimas
+      community.routeros.command:
+        commands:
+          - >
+            :if ([:len [/ip address find address="{{ switch_management_ip }}"]] = 0)
+            do={/ip address add address={{ switch_management_ip }} interface=vlan99-management comment="Switch management IP"}
+
+    - name: VLAN filtravimo įjungimas komutatoriaus tilte
+      community.routeros.command:
+        commands:
+          - /interface bridge set {{ lan_bridge }} vlan-filtering=yes

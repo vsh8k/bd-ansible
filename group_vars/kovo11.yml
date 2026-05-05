@@ -1,0 +1,53 @@
+site_name: kovo11
+
+vlans:
+  - id: 10
+    name: administracija
+    subnet: 192.168.10.0/24
+    gateway: 192.168.10.1
+    dhcp_start: 192.168.10.50
+    dhcp_end: 192.168.10.200
+    dhcp: true
+
+  - id: 20
+    name: darbuotojai
+    subnet: 192.168.20.0/24
+    gateway: 192.168.20.1
+    dhcp_start: 192.168.20.50
+    dhcp_end: 192.168.20.200
+    dhcp: true
+
+  - id: 30
+    name: mokiniai
+    subnet: 192.168.30.0/24
+    gateway: 192.168.30.1
+    dhcp_start: 192.168.30.50
+    dhcp_end: 192.168.30.200
+    dhcp: true
+
+  - id: 40
+    name: sveciai
+    subnet: 192.168.40.0/24
+    gateway: 192.168.40.1
+    dhcp_start: 192.168.40.50
+    dhcp_end: 192.168.40.200
+    dhcp: true
+
+  - id: 50
+    name: paslaugos
+    subnet: 192.168.50.0/24
+    gateway: 192.168.50.1
+    dhcp: false
+
+  - id: 99
+    name: valdymas
+    subnet: 192.168.99.0/24
+    gateway: 192.168.99.1
+    dhcp: false
+
+admin_subnet: 192.168.10.0/24
+staff_subnet: 192.168.20.0/24
+student_subnet: 192.168.30.0/24
+guest_subnet: 192.168.40.0/24
+services_subnet: 192.168.50.0/24
+management_subnet: 192.168.99.0/24
